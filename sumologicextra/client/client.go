@@ -58,9 +58,9 @@ func (c *Client) HttpRequest(ctx context.Context, method string, path string, qu
 	}
 	requestDump, err := httputil.DumpRequest(req, true)
 	if err != nil {
-		tflog.Info(ctx, "Konnect API:", map[string]any{"error": err})
+		tflog.Info(ctx, "SumoLogic API:", map[string]any{"error": err})
 	} else {
-		tflog.Info(ctx, "Konnect API: ", map[string]any{"request": string(requestDump)})
+		tflog.Info(ctx, "SumoLogic API: ", map[string]any{"request": string(requestDump)})
 	}
 	try := 0
 	var resp *http.Response

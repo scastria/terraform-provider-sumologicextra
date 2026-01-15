@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -14,7 +15,6 @@ import (
 
 const (
 	ApplicationJson  = "application/json"
-	Bearer           = "Bearer"
 	SumoLogicBaseUrl = "https://api.sumologic.com/api/v1"
 )
 
@@ -22,23 +22,32 @@ type Client struct {
 	numRetries int
 	retryDelay int
 	httpClient *http.Client
+	accessID   string
+	accessKey  string
 }
 
-func NewClient(numRetries int, retryDelay int) (*Client, error) {
+func NewClient(accessID string, accessKey string, numRetries int, retryDelay int) (*Client, error) {
 	c := &Client{
 		numRetries: numRetries,
 		retryDelay: retryDelay,
 		httpClient: &http.Client{},
+		accessID:   accessID,
+		accessKey:  accessKey,
 	}
 	return c, nil
 }
 
 func (c *Client) HttpRequest(ctx context.Context, method string, path string, query url.Values, headerMap http.Header, body *bytes.Buffer) (*bytes.Buffer, error) {
-	req, err := http.NewRequest(method, c.RequestPath(path), body)
+	var reqBody io.Reader = http.NoBody
+	if body != nil {
+		reqBody = body
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.RequestPath(path), reqBody)
 	if err != nil {
 		return nil, &RequestError{StatusCode: http.StatusInternalServerError, Err: err}
 	}
-	//Handle query values
+	req.SetBasicAuth(c.accessID, c.accessKey)
+	// Handle query values
 	if query != nil {
 		requestQuery := req.URL.Query()
 		for key, values := range query {

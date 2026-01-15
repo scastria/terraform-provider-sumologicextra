@@ -11,6 +11,19 @@ import (
 func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
+			"access_id": {
+				Type:        schema.TypeString,
+				Required:    true,
+				DefaultFunc: schema.EnvDefaultFunc("SUMOLOGIC_ACCESSID", nil),
+				Description: "Sumo Logic access ID.",
+			},
+			"access_key": {
+				Type:        schema.TypeString,
+				Required:    true,
+				Sensitive:   true,
+				DefaultFunc: schema.EnvDefaultFunc("SUMOLOGIC_ACCESSKEY", nil),
+				Description: "Sumo Logic access key.",
+			},
 			"num_retries": {
 				Type:        schema.TypeInt,
 				Optional:    true,
@@ -31,11 +44,13 @@ func Provider() *schema.Provider {
 }
 
 func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
+	accessID := d.Get("access_id").(string)
+	accessKey := d.Get("access_key").(string)
 	numRetries := d.Get("num_retries").(int)
 	retryDelay := d.Get("retry_delay").(int)
 
 	var diags diag.Diagnostics
-	c, err := client.NewClient(numRetries, retryDelay)
+	c, err := client.NewClient(accessID, accessKey, numRetries, retryDelay)
 	if err != nil {
 		return nil, diag.FromErr(err)
 	}

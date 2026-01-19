@@ -166,7 +166,7 @@ func resourceCollectorUpdate(ctx context.Context, d *schema.ResourceData, m inte
 		return diags
 	}
 	requestPath := fmt.Sprintf(client.CollectorPath, d.Id())
-	etag, err := c.GetEtag(ctx, requestPath)
+	etag, err := c.GetEtag(requestPath)
 	if err != nil {
 		return diag.FromErr(err)
 	}

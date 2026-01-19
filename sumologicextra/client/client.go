@@ -104,7 +104,7 @@ func (c *Client) RequestPath(path string) string {
 	return fmt.Sprintf("%s/%s", SumoLogicBaseUrl, path)
 }
 
-func (c *Client) GetEtag(ctx context.Context, path string) (string, error) {
+func (c *Client) GetEtag(path string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, c.RequestPath(path), &bytes.Buffer{})
 	if err != nil {
 		return "", &RequestError{StatusCode: http.StatusInternalServerError, Err: err}

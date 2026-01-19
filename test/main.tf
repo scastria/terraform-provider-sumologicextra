@@ -10,6 +10,6 @@ provider "sumologicextra" {
 }
 
 resource "sumologicextra_collector" "collector" {
-  name        = "my-collector"
-  description = "Test"
+  name        = "rado_test"
+  use_existing   = true
 }

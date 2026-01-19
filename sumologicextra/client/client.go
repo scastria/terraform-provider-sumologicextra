@@ -103,3 +103,22 @@ func (c *Client) HttpRequest(ctx context.Context, method string, path string, qu
 func (c *Client) RequestPath(path string) string {
 	return fmt.Sprintf("%s/%s", SumoLogicBaseUrl, path)
 }
+
+func (c *Client) GetEtag(ctx context.Context, path string) (string, error) {
+	req, err := http.NewRequest(http.MethodGet, c.RequestPath(path), &bytes.Buffer{})
+	if err != nil {
+		return "", &RequestError{StatusCode: http.StatusInternalServerError, Err: err}
+	}
+	req.SetBasicAuth(c.accessID, c.accessKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", &RequestError{StatusCode: http.StatusInternalServerError, Err: err}
+	}
+	defer resp.Body.Close()
+	if (resp.StatusCode < http.StatusOK) || (resp.StatusCode >= http.StatusMultipleChoices) {
+		respBody := new(bytes.Buffer)
+		_, _ = respBody.ReadFrom(resp.Body)
+		return "", &RequestError{StatusCode: resp.StatusCode, Err: fmt.Errorf("%s", respBody.String())}
+	}
+	return resp.Header.Get("Etag"), nil
+}

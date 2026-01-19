@@ -15,14 +15,12 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Required:    true,
 				DefaultFunc: schema.EnvDefaultFunc("SUMOLOGIC_ACCESSID", nil),
-				Description: "Sumo Logic access ID.",
 			},
 			"access_key": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
 				DefaultFunc: schema.EnvDefaultFunc("SUMOLOGIC_ACCESSKEY", nil),
-				Description: "Sumo Logic access key.",
 			},
 			"num_retries": {
 				Type:        schema.TypeInt,
@@ -49,6 +47,9 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	numRetries := d.Get("num_retries").(int)
 	retryDelay := d.Get("retry_delay").(int)
 
+	if (accessID == "") || (accessKey == "") {
+		return nil, diag.Errorf("You must specify access_id and access_key")
+	}
 	var diags diag.Diagnostics
 	c, err := client.NewClient(accessID, accessKey, numRetries, retryDelay)
 	if err != nil {

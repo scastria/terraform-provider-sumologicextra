@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     sumologicextra = {
-      source = "scastria/sumologicextra"
+      source = "github.com/scastria/sumologicextra"
     }
   }
 }
@@ -10,6 +10,6 @@ provider "sumologicextra" {
 }
 
 resource "sumologicextra_collector" "collector" {
-  name        = "rado_test"
+  name        = "shawn_test"
   use_existing   = true
 }

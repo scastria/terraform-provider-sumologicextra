@@ -1,12 +1,13 @@
 package client
 
 const (
-	CollectorPath    = "collectors"
-	CollectorPathGet = CollectorPath + "/%s"
+	CollectorPath        = "collectors"
+	CollectorPathGet     = CollectorPath + "/%s"
+	CollectorPathNameGet = CollectorPath + "/name/%s"
 )
 
 type Collector struct {
-	ID            int64  `json:"id,omitempty"`
+	ID            int    `json:"id,omitempty"`
 	Name          string `json:"name"`
 	TimeZone      string `json:"timeZone,omitempty"`
 	CollectorType string `json:"collectorType,omitempty"`
@@ -16,8 +17,4 @@ type Collector struct {
 
 type CollectorResponse struct {
 	Collector Collector `json:"collector"`
-}
-
-type CollectorsResponse struct {
-	Collectors []Collector `json:"collectors"`
 }

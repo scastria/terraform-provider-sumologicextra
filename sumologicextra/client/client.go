@@ -88,10 +88,10 @@ func (c *Client) HttpRequest(ctx context.Context, method string, path string, qu
 	respBody := new(bytes.Buffer)
 	_, err = respBody.ReadFrom(resp.Body)
 	if err != nil {
-		return nil, respHeaders, &RequestError{StatusCode: resp.StatusCode, Err: err}
+		return nil, nil, &RequestError{StatusCode: resp.StatusCode, Err: err}
 	}
 	if (resp.StatusCode < http.StatusOK) || (resp.StatusCode >= http.StatusMultipleChoices) {
-		return nil, respHeaders, &RequestError{StatusCode: resp.StatusCode, Err: fmt.Errorf("%s", respBody.String())}
+		return nil, nil, &RequestError{StatusCode: resp.StatusCode, Err: fmt.Errorf("%s", respBody.String())}
 	}
 	return respBody, respHeaders, nil
 }

@@ -59,15 +59,14 @@ func resourceCollectorCreate(ctx context.Context, d *schema.ResourceData, m inte
 	var body *bytes.Buffer = nil
 	var err error
 	if newCollector.Collector.UseExisting {
-		requestPath := fmt.Sprintf("collectors/name/%s", url.PathEscape(newCollector.Collector.Name))
+		requestPath := fmt.Sprintf(client.CollectorPathNameGet, url.PathEscape(newCollector.Collector.Name))
 		body, _, err = c.HttpRequest(ctx, http.MethodGet, requestPath, nil, nil, &bytes.Buffer{})
 		if err != nil {
-			re, ok := err.(*client.RequestError)
-			if ok && re.StatusCode == http.StatusNotFound {
-				body = nil
-			} else {
-				return diags
+			re := err.(*client.RequestError)
+			if re.StatusCode != http.StatusNotFound {
+				return diag.FromErr(err)
 			}
+			body = nil
 		}
 	}
 	if body == nil {
@@ -75,7 +74,7 @@ func resourceCollectorCreate(ctx context.Context, d *schema.ResourceData, m inte
 		err := json.NewEncoder(&buf).Encode(newCollector)
 		if err != nil {
 			d.SetId("")
-			return diags
+			return diag.FromErr(err)
 		}
 		requestHeaders := http.Header{
 			headers.ContentType: []string{client.ApplicationJson},
@@ -83,26 +82,23 @@ func resourceCollectorCreate(ctx context.Context, d *schema.ResourceData, m inte
 		body, _, err = c.HttpRequest(ctx, http.MethodPost, client.CollectorPath, nil, requestHeaders, &buf)
 		if err != nil {
 			d.SetId("")
-			return diags
+			return diag.FromErr(err)
 		}
 	}
 	retVal := &client.CollectorResponse{}
 	err = json.NewDecoder(body).Decode(retVal)
 	if err != nil {
 		d.SetId("")
-		return diags
+		return diag.FromErr(err)
 	}
 	fillResourceDataFromCollector(retVal, d)
-	d.SetId(strconv.FormatInt(retVal.Collector.ID, 10))
+	d.SetId(strconv.Itoa(retVal.Collector.ID))
 	return diags
 }
 
 func resourceCollectorRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	c := m.(*client.Client)
-	if d.Id() == "" {
-		return diags
-	}
 	requestPath := fmt.Sprintf(client.CollectorPathGet, d.Id())
 	body, _, err := c.HttpRequest(ctx, http.MethodGet, requestPath, nil, nil, &bytes.Buffer{})
 	if err != nil {
@@ -126,16 +122,13 @@ func resourceCollectorRead(ctx context.Context, d *schema.ResourceData, m interf
 func resourceCollectorUpdate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	c := m.(*client.Client)
-	if d.Id() == "" {
-		return diags
-	}
 	if !d.HasChange("name") {
 		return diags
 	}
 	requestPath := fmt.Sprintf(client.CollectorPathGet, d.Id())
 	_, respHeaders, err := c.HttpRequest(ctx, http.MethodGet, requestPath, nil, nil, &bytes.Buffer{})
 	if err != nil {
-		return diags
+		return diag.FromErr(err)
 	}
 	etag := respHeaders.Get(headers.ETag)
 	if etag == "" {
@@ -143,15 +136,15 @@ func resourceCollectorUpdate(ctx context.Context, d *schema.ResourceData, m inte
 	}
 	upd := client.CollectorResponse{}
 	fillCollector(&upd, d)
-	id, parseErr := strconv.ParseInt(d.Id(), 10, 64)
-	if parseErr != nil {
-		return diags
+	id, err := strconv.Atoi(d.Id())
+	if err != nil {
+		return diag.FromErr(err)
 	}
 	upd.Collector.ID = id
 	buf := bytes.Buffer{}
 	err = json.NewEncoder(&buf).Encode(upd)
 	if err != nil {
-		return diags
+		return diag.FromErr(err)
 	}
 	requestHeaders := http.Header{
 		headers.ContentType: []string{client.ApplicationJson},
@@ -159,7 +152,7 @@ func resourceCollectorUpdate(ctx context.Context, d *schema.ResourceData, m inte
 	}
 	body, _, err := c.HttpRequest(ctx, http.MethodPut, requestPath, nil, requestHeaders, &buf)
 	if err != nil {
-		return diags
+		return diag.FromErr(err)
 	}
 	retVal := &client.CollectorResponse{}
 	err = json.NewDecoder(body).Decode(retVal)
@@ -173,9 +166,6 @@ func resourceCollectorUpdate(ctx context.Context, d *schema.ResourceData, m inte
 func resourceCollectorDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	c := m.(*client.Client)
-	if d.Id() == "" {
-		return diags
-	}
 	requestPath := fmt.Sprintf(client.CollectorPathGet, d.Id())
 	_, _, err := c.HttpRequest(ctx, http.MethodDelete, requestPath, nil, nil, &bytes.Buffer{})
 	if err != nil {

@@ -48,7 +48,7 @@ func fillCollector(c *client.CollectorResponse, d *schema.ResourceData) {
 
 func fillResourceDataFromCollector(c *client.CollectorResponse, d *schema.ResourceData) {
 	d.Set("name", c.Collector.Name)
-	d.Set("use_existing", d.Get("use_existing").(bool))
+	d.Set("use_existing", c.Collector.UseExisting)
 }
 
 func resourceCollectorCreate(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
@@ -59,46 +59,14 @@ func resourceCollectorCreate(ctx context.Context, d *schema.ResourceData, m inte
 	var body *bytes.Buffer = nil
 	var err error
 	if newCollector.Collector.UseExisting {
-		const pageSize = 100
-		offset := 0
-		var foundID int64 = 0
-		for {
-			q := url.Values{}
-			q.Set("limit", strconv.Itoa(pageSize))
-			q.Set("offset", strconv.Itoa(offset))
-			listBody, err := c.HttpRequest(ctx, http.MethodGet, client.CollectorPath, q, nil, &bytes.Buffer{})
-			if err != nil {
-				return diag.FromErr(err)
-			}
-			listRetVal := &client.CollectorsResponse{}
-			err = json.NewDecoder(listBody).Decode(listRetVal)
-			if err != nil {
-				d.SetId("")
-				return diag.FromErr(err)
-			}
-			if len(listRetVal.Collectors) == 0 {
-				break
-			}
-			for _, col := range listRetVal.Collectors {
-				if col.Name == newCollector.Collector.Name {
-					foundID = col.ID
-					break
-				}
-			}
-			if foundID != 0 {
-				break
-			}
-			offset += pageSize
-		}
-		if foundID != 0 {
-			requestPath := fmt.Sprintf(client.CollectorPathGet, strconv.FormatInt(foundID, 10))
-			body, err = c.HttpRequest(ctx, http.MethodGet, requestPath, nil, nil, &bytes.Buffer{})
-			if err != nil {
-				re := err.(*client.RequestError)
-				if re.StatusCode != http.StatusNotFound {
-					return diag.FromErr(err)
-				}
+		requestPath := fmt.Sprintf("collectors/name/%s", url.PathEscape(newCollector.Collector.Name))
+		body, _, err = c.HttpRequest(ctx, http.MethodGet, requestPath, nil, nil, &bytes.Buffer{})
+		if err != nil {
+			re, ok := err.(*client.RequestError)
+			if ok && re.StatusCode == http.StatusNotFound {
 				body = nil
+			} else {
+				return diags
 			}
 		}
 	}
@@ -107,22 +75,22 @@ func resourceCollectorCreate(ctx context.Context, d *schema.ResourceData, m inte
 		err := json.NewEncoder(&buf).Encode(newCollector)
 		if err != nil {
 			d.SetId("")
-			return diag.FromErr(err)
+			return diags
 		}
 		requestHeaders := http.Header{
 			headers.ContentType: []string{client.ApplicationJson},
 		}
-		body, err = c.HttpRequest(ctx, http.MethodPost, client.CollectorPath, nil, requestHeaders, &buf)
+		body, _, err = c.HttpRequest(ctx, http.MethodPost, client.CollectorPath, nil, requestHeaders, &buf)
 		if err != nil {
 			d.SetId("")
-			return diag.FromErr(err)
+			return diags
 		}
 	}
 	retVal := &client.CollectorResponse{}
 	err = json.NewDecoder(body).Decode(retVal)
 	if err != nil {
 		d.SetId("")
-		return diag.FromErr(err)
+		return diags
 	}
 	fillResourceDataFromCollector(retVal, d)
 	d.SetId(strconv.FormatInt(retVal.Collector.ID, 10))
@@ -132,12 +100,11 @@ func resourceCollectorCreate(ctx context.Context, d *schema.ResourceData, m inte
 func resourceCollectorRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 	c := m.(*client.Client)
-
 	if d.Id() == "" {
 		return diags
 	}
 	requestPath := fmt.Sprintf(client.CollectorPathGet, d.Id())
-	body, err := c.HttpRequest(ctx, http.MethodGet, requestPath, nil, nil, &bytes.Buffer{})
+	body, _, err := c.HttpRequest(ctx, http.MethodGet, requestPath, nil, nil, &bytes.Buffer{})
 	if err != nil {
 		d.SetId("")
 		re, ok := err.(*client.RequestError)
@@ -166,29 +133,33 @@ func resourceCollectorUpdate(ctx context.Context, d *schema.ResourceData, m inte
 		return diags
 	}
 	requestPath := fmt.Sprintf(client.CollectorPathGet, d.Id())
-	etag, err := c.GetEtag(requestPath)
+	_, respHeaders, err := c.HttpRequest(ctx, http.MethodGet, requestPath, nil, nil, &bytes.Buffer{})
 	if err != nil {
-		return diag.FromErr(err)
+		return diags
 	}
+	etag := respHeaders.Get(headers.ETag)
 	if etag == "" {
 		return diag.Errorf("SumoLogic API did not return ETag for %s", requestPath)
 	}
 	upd := client.CollectorResponse{}
-	fillCollector(&upd, d) // sets Name + Hosted/Ephemeral etc
-	upd.Collector.ID, _ = strconv.ParseInt(d.Id(), 10, 64)
+	fillCollector(&upd, d)
+	id, parseErr := strconv.ParseInt(d.Id(), 10, 64)
+	if parseErr != nil {
+		return diags
+	}
+	upd.Collector.ID = id
 	buf := bytes.Buffer{}
 	err = json.NewEncoder(&buf).Encode(upd)
 	if err != nil {
-		return diag.FromErr(err)
+		return diags
 	}
 	requestHeaders := http.Header{
 		headers.ContentType: []string{client.ApplicationJson},
 		headers.IfMatch:     []string{etag},
 	}
-
-	body, err := c.HttpRequest(ctx, http.MethodPut, requestPath, nil, requestHeaders, &buf)
+	body, _, err := c.HttpRequest(ctx, http.MethodPut, requestPath, nil, requestHeaders, &buf)
 	if err != nil {
-		return diag.FromErr(err)
+		return diags
 	}
 	retVal := &client.CollectorResponse{}
 	err = json.NewDecoder(body).Decode(retVal)
@@ -206,7 +177,7 @@ func resourceCollectorDelete(ctx context.Context, d *schema.ResourceData, m inte
 		return diags
 	}
 	requestPath := fmt.Sprintf(client.CollectorPathGet, d.Id())
-	_, err := c.HttpRequest(ctx, http.MethodDelete, requestPath, nil, nil, &bytes.Buffer{})
+	_, _, err := c.HttpRequest(ctx, http.MethodDelete, requestPath, nil, nil, &bytes.Buffer{})
 	if err != nil {
 		return diag.FromErr(err)
 	}

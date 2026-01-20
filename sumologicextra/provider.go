@@ -46,10 +46,6 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	accessKey := d.Get("access_key").(string)
 	numRetries := d.Get("num_retries").(int)
 	retryDelay := d.Get("retry_delay").(int)
-
-	if (accessID == "") || (accessKey == "") {
-		return nil, diag.Errorf("You must specify access_id and access_key")
-	}
 	var diags diag.Diagnostics
 	c, err := client.NewClient(accessID, accessKey, numRetries, retryDelay)
 	if err != nil {

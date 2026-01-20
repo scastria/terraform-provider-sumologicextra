@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -37,14 +36,10 @@ func NewClient(accessID string, accessKey string, numRetries int, retryDelay int
 	return c, nil
 }
 
-func (c *Client) HttpRequest(ctx context.Context, method string, path string, query url.Values, headerMap http.Header, body *bytes.Buffer) (*bytes.Buffer, error) {
-	var reqBody io.Reader = http.NoBody
-	if body != nil {
-		reqBody = body
-	}
-	req, err := http.NewRequestWithContext(ctx, method, c.RequestPath(path), reqBody)
+func (c *Client) HttpRequest(ctx context.Context, method string, path string, query url.Values, headerMap http.Header, body *bytes.Buffer) (*bytes.Buffer, http.Header, error) {
+	req, err := http.NewRequestWithContext(ctx, method, c.RequestPath(path), body)
 	if err != nil {
-		return nil, &RequestError{StatusCode: http.StatusInternalServerError, Err: err}
+		return nil, nil, &RequestError{StatusCode: http.StatusInternalServerError, Err: err}
 	}
 	req.SetBasicAuth(c.accessID, c.accessKey)
 	// Handle query values
@@ -76,7 +71,7 @@ func (c *Client) HttpRequest(ctx context.Context, method string, path string, qu
 	for {
 		resp, err = c.httpClient.Do(req)
 		if err != nil {
-			return nil, &RequestError{StatusCode: http.StatusInternalServerError, Err: err}
+			return nil, nil, &RequestError{StatusCode: http.StatusInternalServerError, Err: err}
 		}
 		if (resp.StatusCode == http.StatusTooManyRequests) || (resp.StatusCode >= http.StatusInternalServerError) {
 			try++
@@ -89,36 +84,18 @@ func (c *Client) HttpRequest(ctx context.Context, method string, path string, qu
 		break
 	}
 	defer resp.Body.Close()
+	respHeaders := resp.Header.Clone()
 	respBody := new(bytes.Buffer)
 	_, err = respBody.ReadFrom(resp.Body)
 	if err != nil {
-		return nil, &RequestError{StatusCode: resp.StatusCode, Err: err}
+		return nil, respHeaders, &RequestError{StatusCode: resp.StatusCode, Err: err}
 	}
 	if (resp.StatusCode < http.StatusOK) || (resp.StatusCode >= http.StatusMultipleChoices) {
-		return nil, &RequestError{StatusCode: resp.StatusCode, Err: fmt.Errorf("%s", respBody.String())}
+		return nil, respHeaders, &RequestError{StatusCode: resp.StatusCode, Err: fmt.Errorf("%s", respBody.String())}
 	}
-	return respBody, nil
+	return respBody, respHeaders, nil
 }
 
 func (c *Client) RequestPath(path string) string {
 	return fmt.Sprintf("%s/%s", SumoLogicBaseUrl, path)
-}
-
-func (c *Client) GetEtag(path string) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, c.RequestPath(path), &bytes.Buffer{})
-	if err != nil {
-		return "", &RequestError{StatusCode: http.StatusInternalServerError, Err: err}
-	}
-	req.SetBasicAuth(c.accessID, c.accessKey)
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", &RequestError{StatusCode: http.StatusInternalServerError, Err: err}
-	}
-	defer resp.Body.Close()
-	if (resp.StatusCode < http.StatusOK) || (resp.StatusCode >= http.StatusMultipleChoices) {
-		respBody := new(bytes.Buffer)
-		_, _ = respBody.ReadFrom(resp.Body)
-		return "", &RequestError{StatusCode: resp.StatusCode, Err: fmt.Errorf("%s", respBody.String())}
-	}
-	return resp.Header.Get("Etag"), nil
 }

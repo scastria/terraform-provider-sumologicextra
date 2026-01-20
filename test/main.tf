@@ -10,6 +10,6 @@ provider "sumologicextra" {
 }
 
 resource "sumologicextra_collector" "collector" {
-  name        = "shawn_test"
+  name        = "my_collector"
   use_existing   = true
 }

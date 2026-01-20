@@ -14,10 +14,14 @@ terraform {
 
 # Configure the SumoLogic Extra Provider
 provider "sumologicextra" {
+  access_id = "XXXX"
+  access_key = "YYYY"
   num_retries = 3
   retry_delay = 30
 }
 ```
 ## Argument Reference
+* `access_id` - **(Required, String)** The access_id that will invoke all SumoLogic API commands. Client Credentials Authentication. Can be specified via env variable `SUMOLOGIC_ACCESSID`.
+* `access_key` - **(Required, String)** The access_key for the access_id. Client Credentials Authentication. Can be specified via env variable `SUMOLOGIC_ACCESSKEY`.
 * `num_retries` - **(Optional, Integer)** Number of retries for each SumoLogic API call in case of 429-Too Many Requests or any 5XX status code. Can be specified via env variable `SUMOLOGIC_NUM_RETRIES`. Default: 3.
 * `retry_delay` - **(Optional, Integer)** How long to wait (in seconds) in between retries. Can be specified via env variable `SUMOLOGIC_RETRY_DELAY`. Default: 30.

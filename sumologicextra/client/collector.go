@@ -1,8 +1,8 @@
 package client
 
 const (
-	CollectorsPath = "collectors"
-	CollectorPath  = "collectors/%s"
+	CollectorPath    = "collectors"
+	CollectorPathGet = CollectorPath + "/%s"
 )
 
 type Collector struct {

@@ -19,20 +19,20 @@ const (
 )
 
 type Client struct {
+	accessID   string
+	accessKey  string
 	numRetries int
 	retryDelay int
 	httpClient *http.Client
-	accessID   string
-	accessKey  string
 }
 
 func NewClient(accessID string, accessKey string, numRetries int, retryDelay int) (*Client, error) {
 	c := &Client{
+		accessID:   accessID,
+		accessKey:  accessKey,
 		numRetries: numRetries,
 		retryDelay: retryDelay,
 		httpClient: &http.Client{},
-		accessID:   accessID,
-		accessKey:  accessKey,
 	}
 	return c, nil
 }

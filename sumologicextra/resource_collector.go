@@ -66,7 +66,7 @@ func resourceCollectorCreate(ctx context.Context, d *schema.ResourceData, m inte
 			q := url.Values{}
 			q.Set("limit", strconv.Itoa(pageSize))
 			q.Set("offset", strconv.Itoa(offset))
-			listBody, err := c.HttpRequest(ctx, http.MethodGet, client.CollectorsPath, q, nil, &bytes.Buffer{})
+			listBody, err := c.HttpRequest(ctx, http.MethodGet, client.CollectorPath, q, nil, &bytes.Buffer{})
 			if err != nil {
 				return diag.FromErr(err)
 			}
@@ -91,7 +91,7 @@ func resourceCollectorCreate(ctx context.Context, d *schema.ResourceData, m inte
 			offset += pageSize
 		}
 		if foundID != 0 {
-			requestPath := fmt.Sprintf(client.CollectorPath, strconv.FormatInt(foundID, 10))
+			requestPath := fmt.Sprintf(client.CollectorPathGet, strconv.FormatInt(foundID, 10))
 			body, err = c.HttpRequest(ctx, http.MethodGet, requestPath, nil, nil, &bytes.Buffer{})
 			if err != nil {
 				re := err.(*client.RequestError)
@@ -112,7 +112,7 @@ func resourceCollectorCreate(ctx context.Context, d *schema.ResourceData, m inte
 		requestHeaders := http.Header{
 			headers.ContentType: []string{client.ApplicationJson},
 		}
-		body, err = c.HttpRequest(ctx, http.MethodPost, client.CollectorsPath, nil, requestHeaders, &buf)
+		body, err = c.HttpRequest(ctx, http.MethodPost, client.CollectorPath, nil, requestHeaders, &buf)
 		if err != nil {
 			d.SetId("")
 			return diag.FromErr(err)
@@ -136,7 +136,7 @@ func resourceCollectorRead(ctx context.Context, d *schema.ResourceData, m interf
 	if d.Id() == "" {
 		return diags
 	}
-	requestPath := fmt.Sprintf(client.CollectorPath, d.Id())
+	requestPath := fmt.Sprintf(client.CollectorPathGet, d.Id())
 	body, err := c.HttpRequest(ctx, http.MethodGet, requestPath, nil, nil, &bytes.Buffer{})
 	if err != nil {
 		d.SetId("")
@@ -165,7 +165,7 @@ func resourceCollectorUpdate(ctx context.Context, d *schema.ResourceData, m inte
 	if !d.HasChange("name") {
 		return diags
 	}
-	requestPath := fmt.Sprintf(client.CollectorPath, d.Id())
+	requestPath := fmt.Sprintf(client.CollectorPathGet, d.Id())
 	etag, err := c.GetEtag(requestPath)
 	if err != nil {
 		return diag.FromErr(err)
@@ -205,7 +205,7 @@ func resourceCollectorDelete(ctx context.Context, d *schema.ResourceData, m inte
 	if d.Id() == "" {
 		return diags
 	}
-	requestPath := fmt.Sprintf(client.CollectorPath, d.Id())
+	requestPath := fmt.Sprintf(client.CollectorPathGet, d.Id())
 	_, err := c.HttpRequest(ctx, http.MethodDelete, requestPath, nil, nil, &bytes.Buffer{})
 	if err != nil {
 		return diag.FromErr(err)
